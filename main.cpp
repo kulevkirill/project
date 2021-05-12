@@ -1,52 +1,78 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
-#include <cmath>
-#include "road.h"
+#include <iostream>
+#include "game.hpp"
+
 
 
 int main() {
-	int width = 1440;
-	int height = 900;
+	int width = 1280, height = 720;
 
-	sf::RenderWindow window(sf::VideoMode(width, height), "Racing");
-	Road road(sf::Vector2f(720, 975), 1540, 25);
+	int segmentWidth = 200, segmentLength = 100;
+	sf::Vector3f pnt(0, 0, 0);
 
-	int hill = 0;
-	int curve = 0;
 
-	road.changeRoad(100, 0, 100);
+	sf::RenderWindow window(sf::VideoMode(width, height), "Outrun Racing!");
 
-	for (int i = 0; i < 1000; i++) {
-		hill = (sin((i * 5) * M_PI / 180.0) * 250);
-		hill += 200;
-		curve = (sin((i * 3) * M_PI / 180.0) * 100);
-		road.changeRoad(3, curve, hill);
-	}
 
-	int fps = 30;
+	int fps = 60;
 	window.setFramerateLimit(fps);
 
-	double dy = 0;
-	double dt = 1.0 / fps;
 
-	while (window.isOpen()) {
+	Camera camera;
+
+	Player player;
+
+	Road road(1000, segmentWidth, segmentLength);
+
+
+	while (window.isOpen())
+	{
+
 		sf::Event event;
-		while (window.pollEvent(event)) {
+		while (window.pollEvent(event))
+		{
 			if (event.type == sf::Event::Closed)
 				window.close();
 		}
+		
+
+		double dt = 1.0 / fps;
+		double dz = player.getSpeed() * dt;
+
+		std::cout << dt << "   " << dz << std::endl;
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up)) {
-			road.updateRoad();
-			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space)) {
-				road.updateRoad();
-			}
+			player.accelerate(dt);
 		}
 
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down)) {
+			player.braking(dt);
+		}
 
-		window.clear();
-		road.drawRoad(window);
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) {
+			double newCamX = camera.getCamX() + dz / 10;
+			camera.changeCamX(newCamX);
+		}
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left)) {
+			double newCamX = camera.getCamX() - dz / 10;
+			camera.changeCamX(newCamX);
+		}
+
+		player.decelerate(dt, camera, road);
+
+		double newCamZ = camera.getCamZ() + dz;
+		camera.changeCamZ(newCamZ);
+
+
+
+		road.drawRoad(window, camera, sf::Color::Green, sf::Color::Yellow, width, height);
+		player.drawPlayer(window);
+		//player.drawShoot(window);
+
 		window.display();
+		window.clear();
 	}
 
 	return 0;
