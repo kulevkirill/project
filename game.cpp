@@ -2,6 +2,9 @@
 #include <vector>
 #include "game.hpp"
 
+#include <iostream>
+#include <math.h>
+
 
 Camera::Camera() {
 	camX = 0.0;
@@ -69,10 +72,13 @@ sf::Vector2f Camera::projection(const sf::Vector3f point3D, int width, int heigh
 
 
 
-Segment::Segment(const sf::Vector3f& centerPoint, double width, double length) {
+Segment::Segment(const sf::Vector3f& centerPoint, double width, double length, bool wall) {
 	center = centerPoint;
+
 	segWidth = width;
 	segLength = length;
+
+	isWall = wall;
 }
 
 double Segment::getSegmentWidth() const {
@@ -81,6 +87,10 @@ double Segment::getSegmentWidth() const {
 
 double Segment::getSegmentLength() const {
 	return segLength;
+}
+
+bool Segment::getIsWall() const {
+	return isWall;
 }
 
 sf::Vector3f Segment::getPoint0() const {
@@ -125,13 +135,37 @@ sf::Vector3f Segment::getPoint3() const {
 
 void Segment::drawSegment(sf::RenderWindow& window, const Camera& camera, sf::Color color, int width, int height) const {
 	sf::ConvexShape shape(4);
+	sf::ConvexShape wallShape(4);
 
 	shape.setFillColor(color);
+	
 
 	sf::Vector2f point0 = camera.projection(this->getPoint0(), width, height);
 	sf::Vector2f point1 = camera.projection(this->getPoint1(), width, height);
 	sf::Vector2f point2 = camera.projection(this->getPoint2(), width, height);
 	sf::Vector2f point3 = camera.projection(this->getPoint3(), width, height);
+
+	if (isWall) {
+		wallShape.setFillColor(sf::Color(0, 0, 0));
+
+		sf::Vector3f wallPoint3D0 = this->getPoint0();
+		sf::Vector3f wallPoint3D1 = this->getPoint0();
+		sf::Vector3f wallPoint3D2 = this->getPoint3();
+		sf::Vector3f wallPoint3D3 = this->getPoint3();
+
+		wallPoint3D1.y += 30;
+		wallPoint3D2.y += 30;
+
+		sf::Vector2f wallPoint0 = camera.projection(wallPoint3D0, width, height);
+		sf::Vector2f wallPoint1 = camera.projection(wallPoint3D1, width, height);
+		sf::Vector2f wallPoint2 = camera.projection(wallPoint3D2, width, height);
+		sf::Vector2f wallPoint3 = camera.projection(wallPoint3D3, width, height);
+
+		wallShape.setPoint(0, wallPoint0);
+		wallShape.setPoint(1, wallPoint1);
+		wallShape.setPoint(2, wallPoint2);
+		wallShape.setPoint(3, wallPoint3);
+	}
 
 	if ((point0.y < height / 2) || (point1.y < height / 2) || (point2.y < height / 2) || (point3.y < height / 2)) {
 		return;
@@ -143,6 +177,7 @@ void Segment::drawSegment(sf::RenderWindow& window, const Camera& camera, sf::Co
 	shape.setPoint(3, point3);
 
 	window.draw(shape);
+	window.draw(wallShape);
 }
 
 sf::Vector3f Segment::getNextCenter() const {
@@ -162,7 +197,12 @@ Road::Road(int roadLen, double segmentWidth, double segmentLength) {
 
 	sf::Vector3f center(0, 0, 0);
 	for (int i = 0; i < roadLength; i++) {
-		Segment newSegment(center, segmentWidth, segmentLength);
+		bool isWall = false;
+		if (i % 5 == 0) {
+			isWall = true;
+		}
+
+		Segment newSegment(center, segmentWidth, segmentLength, isWall);
 		road.push_back(newSegment);
 
 		center = newSegment.getNextCenter();
@@ -178,7 +218,7 @@ double Road::getRoadSegmentWidth() const {
 }
 
 void Road::drawRoad(sf::RenderWindow& window, const Camera& camera, sf::Color color1, sf::Color color2, int width, int height) const {
-	for (int i = 0; i < roadLength; i++) {
+	for (int i = roadLength - 1; i > 0; i--) {
 		sf::Color color;
 		if (i % 2) {
 			color = color1;
@@ -190,8 +230,17 @@ void Road::drawRoad(sf::RenderWindow& window, const Camera& camera, sf::Color co
 	}
 }
 
+std::vector<Segment> Road::getRoad() const {
+	std::vector<Segment> returnRoadValue = road;
+
+	return returnRoadValue;
+}
+
 
 Player::Player() {
+	xPosition = 500;
+	yPosition = 400;
+
 	speed = 200;
 	maxSpeed = 2000;
 
@@ -200,6 +249,12 @@ Player::Player() {
 
 	decel = 100;
 	decelOffGround = 1400;
+
+	jumpAnimationStage = 0;
+
+	isJumping = false;
+
+	isDead = false;
 		
 	playerTexture.loadFromFile("images\\playerSprite.png");
 	shootTexture.loadFromFile("images\\shootSprite.png");
@@ -213,6 +268,18 @@ double Player::getMaxSpeed() const {
 	return maxSpeed;
 }
 
+bool Player::getIsJumping() const {
+	return isJumping;
+}
+
+bool Player::getIsDead() const {
+	return isDead;
+}
+
+void Player::changeSpeed(double newSpeed) {
+	speed = newSpeed;
+}
+
 void Player::accelerate(double dt) {
 	double dv = accel * dt;
 	speed += dv;
@@ -221,6 +288,10 @@ void Player::accelerate(double dt) {
 		speed = maxSpeed;
 	}
 }
+
+//void Player::specialMovement(double dt) {
+//	double 
+//}
 
 void Player::braking(double dt) {
 	double dv = brake * dt;
@@ -252,10 +323,13 @@ void Player::decelerate(double dt, const Camera& camera, const Road& road) {
 
 void Player::drawPlayer(sf::RenderWindow& window) {
 	sf::Sprite playerSprite(playerTexture);
-	playerSprite.setPosition(500, 400);
+	playerSprite.setPosition(xPosition, yPosition);
+	//playerSprite.setPosition(0, 0);
 
 	window.draw(playerSprite);
 }
+
+
 
 void Player::drawShoot(sf::RenderWindow& window) {
 	sf::Sprite shootSprite(shootTexture);
@@ -266,4 +340,59 @@ void Player::drawShoot(sf::RenderWindow& window) {
 	shootSprite.setPosition(xShoot, yShoot);
 
 	window.draw(shootSprite);
+}
+
+void Player::jump() {
+	isJumping = true;
+}
+
+void Player::jumping() {
+	int nStage = 20;
+	if (isJumping == true) {
+		if (jumpAnimationStage <= 10) {
+			yPosition = 400 - jumpAnimationStage * 10;
+			jumpAnimationStage++;		
+		} else if (jumpAnimationStage <= 20) {
+			yPosition = 300 + (jumpAnimationStage - 10) * 10;
+			jumpAnimationStage++;
+		} else {
+			jumpAnimationStage = 0;
+
+			isJumping = false;
+			jumpAnimationStage = 0;
+		}
+	}
+}
+
+void Player::die() {
+	isDead = true;
+}
+
+void Player::returnToLife() {
+	isDead = false;
+}
+
+bool Player::isWallSoon(const Camera& camera, const Road& road) const {
+	bool isWall = false;
+
+	int currentSegment = 0;
+	double zCoordinate = camera.getCamZ();
+	currentSegment = floor(zCoordinate / 100);
+
+	while (zCoordinate > 500) {
+		zCoordinate -= 500;
+	}
+
+	//zCoordinate -= currentSegment * 100;
+	//std::cout << zCoordinate << std::endl;
+
+	//std::cout << currentSegment << std::endl;
+
+	if ((zCoordinate > 343) && (zCoordinate < 363)) {
+		isWall = true;
+	}
+
+	//std::cout << isWall << std::endl;
+
+	return isWall;
 }

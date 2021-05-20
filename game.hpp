@@ -34,11 +34,14 @@ private:
 
 	double segWidth;
 	double segLength;
+
+	bool isWall;
 public:
-	Segment(const sf::Vector3f& centerPoint, double width, double length);
+	Segment(const sf::Vector3f& centerPoint, double width, double length, bool wall);
 
 	double getSegmentWidth() const;
 	double getSegmentLength() const;
+	bool getIsWall() const;
 
 	sf::Vector3f getPoint0() const;
 	sf::Vector3f getPoint1() const;
@@ -59,6 +62,8 @@ private:
 public:
 	Road(int roadLen, double segmentWidth, double segmentLength);
 
+	std::vector<Segment> getRoad() const;
+
 	int getRoadLength() const;
 	double getRoadSegmentWidth() const;
 
@@ -68,6 +73,9 @@ public:
 
 class Player {
 private:
+	int xPosition;
+	int yPosition;
+
 	double speed;
 	double maxSpeed;
 
@@ -82,16 +90,36 @@ private:
 
 	double xShoot;
 	double yShoot;
+
+	int jumpAnimationStage;
+
+	bool isJumping;
+
+	bool isDead;
 public:
 	Player();
 
 	double getSpeed() const;
 	double getMaxSpeed() const;
+	bool getIsJumping() const;
+	bool getIsDead() const;
+
+	void changeSpeed(double newSpeed);
 
 	void accelerate(double dt);
+	void specialMovement(double dt);
 	void braking(double dt);
 	void decelerate(double dt, const Camera& camera, const Road& road);
 
 	void drawPlayer(sf::RenderWindow& window);
 	void drawShoot(sf::RenderWindow& window);
+
+	void jump();
+	void jumping();
+
+	void die();
+	void returnToLife();
+
+	bool isWallSoon(const Camera& camera, const Road& road) const;
+	double coordinateOnCurrentSegment(const Camera& camera, const Road& road) const;
 };
