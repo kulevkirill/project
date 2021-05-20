@@ -1,12 +1,16 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 #include <iostream>
+#include <string>
 #include "game.hpp"
 
 
 
 int main() {
 	int width = 1280, height = 720;
+
+	int points = 0;
+	int maxPoints = 0;
 
 	int segmentWidth = 200, segmentLength = 100;
 	sf::Vector3f pnt(0, 0, 0);
@@ -40,11 +44,14 @@ int main() {
 	sf::Sprite youDiedSprite(youDiedTexture);
 	youDiedSprite.setPosition(0, 0);
 
+	camera.changeCamZ(380);
+
 
 	while (window.isOpen())
 	{
 
 		double dt = clock.getElapsedTime().asSeconds();
+		//double dt = 1 / fps;
 		double dz = player.getSpeed() * dt;
 
 		clock.restart();
@@ -64,10 +71,30 @@ int main() {
 					window.close();
 			}
 
+			sf::Font font;
+			font.loadFromFile("images\\font.otf");
+
+			std::string results = "RESULT: " + std::to_string(points);
+			sf::Text result(results, font);
+			result.setFillColor(sf::Color::White);
+			result.setPosition(20, 300);
+
+			std::string recordValue = "RECORD: " + std::to_string(maxPoints);
+			sf::Text record(recordValue, font);
+			record.setFillColor(sf::Color::White);
+			record.setPosition(20, 400);
+
+			
+
 			if (sf::IntRect(423, 293, 435, 65).contains(sf::Mouse::getPosition(window))) {
 
 				if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
-					player.returnToLife();		
+					player.returnToLife();
+
+					camera.changeCamX(0);
+					camera.changeCamZ(380);
+
+					clock.restart();	
 				}
 			}
 
@@ -79,8 +106,13 @@ int main() {
 			}
 
 			window.draw(youDiedSprite);
+			window.draw(result);
+			window.draw(record);
+
 			window.display();
 			window.clear();
+
+
 		}
 
 		while (isMenu) {
@@ -112,6 +144,7 @@ int main() {
 		}
 
 
+		
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space)) {
 			player.jump();
@@ -130,20 +163,45 @@ int main() {
 		bool isWall = player.isWallSoon(camera, road);
 		player.jumping();
 
-		double newCamZ = camera.getCamZ() + dz;
-		camera.changeCamZ(newCamZ);
+		if (!player.getIsDead()) {
+			double newCamZ = camera.getCamZ() + dz;
+			camera.changeCamZ(newCamZ);
+		}
 
-		double newSpeed = player.getSpeed() + player.getSpeed() * dt;
+		double newSpeed = player.getSpeed() +  dt * 10;
 
-		//if (newSpeed < 500) {
-		//	player.changeSpeed(newSpeed);
-		//}
+		if (newSpeed < 500) {
+			player.changeSpeed(newSpeed);
+		}
+
+		std::cout << camera.getCamZ() << std::endl;
 
 
 		if ((player.isWallSoon(camera, road)) && (!player.getIsJumping())) {
+			points = (int) camera.getCamZ();
+			if (points > maxPoints) {
+				maxPoints = points;
+			}
+
+			player.changeSpeed(200);
+
+			camera.changeCamX(0);
+			camera.changeCamZ(380);
 			player.die();
 		}
 
+		if ((camera.getCamX() < -105) || (camera.getCamX() > 100)) {
+			points = (int) camera.getCamZ();
+			if (points > maxPoints) {
+				maxPoints = points;
+			}
+
+			player.changeSpeed(200);
+
+			camera.changeCamX(0);
+			camera.changeCamZ(380);
+			player.die();
+		}
 
 		sf::Texture backgroundTexture;
 		backgroundTexture.loadFromFile("images\\background.png");
